@@ -1,0 +1,43 @@
+const express = require("express");
+const app = express();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const bodyParser = require("body-parser");
+const db = require("./db"); // Assume this connects to a database
+
+
+app.use(bodyParser.json());
+
+
+const validateInput = (req, res, next) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).send("Username and password are required.");
+    }
+    next();
+};
+
+app.post("/login", validateInput, async (req, res) => {
+    const { username, password } = req.body;
+
+  
+    const result = await db.query("SELECT * FROM users WHERE username = $1", [username]);
+    
+    const user = result.rows[0]; // Assuming the query returns rows, if user found
+
+    if (user) {
+       
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        
+        if (isPasswordValid) {
+            
+            const token = jwt.sign({ userId: user.id }, "your_jwt_secret", { expiresIn: "1h" });
+            return res.send({ token });
+        }
+    }
+
+    
+    res.status(401).send("Unauthorized");
+});
+
+app.listen(3000, () => console.log("Server running on port 3000"));
